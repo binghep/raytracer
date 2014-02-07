@@ -1,0 +1,24 @@
+eye  0.0 0.0 5.0
+viewdir  0.0 0.0 -1.0
+updir  0.0 1.0 0.0
+viewdist  5.0
+fovv 70.0
+aspect 1.0
+pixheight 300
+bkgcolor 0.5 0.0 0.5
+
+materialcolor 0.1 0.0 0.6 1.0 0.8 0.0 0.5 0.5 0.6 8.0 0.2 1.5
+#biggest/most far
+sphere  0.0  0.0  -10.0 5.0
+
+sphere  -3.0 0.0  -3.0  2.0
+
+sphere  2.3  -0.5 -2.0  1.0
+
+sphere  0.0  2.5 -1.0 1.0
+
+#rightmost
+sphere  2.0  1.0  -1.0 2.0  
+
+light -13.0 0.0 -10.0 1.0 0.8 0.3 0.1
+light -10.0 10.0 10.0 0.0 1.0 1.0 1.0
