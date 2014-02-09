@@ -9,7 +9,7 @@
 #include <algorithm>    // std::min
 
 using namespace std;
-#include "assg.h"
+#include "raytracer.h"
 
 void printVec3(Vec3 v){
 	printf("Vec3:  x = %f, y = %f, z = %f.\n", v.x, v.y, v.z);
@@ -54,7 +54,7 @@ float viewdist, fovv, fovh, aspect;
 int pixheight, pixwidth, numsphere, numspherecopy, numlights;
 SphereType spheres[MAXSPHERE];
 LightType lights[MAXLIGHT];
-Vec3 L[MAXLIGHT];//opposite direction to the incomming light
+Vec3 L[MAXLIGHT];//opposite direction to the incoming light
 Node list[MAXSPHERE];
 
 float Fr, R0;
@@ -64,8 +64,8 @@ Point *f = new Point();
 Vec3 *d = new Vec3();
 
 
-/*return the index of the sphere the point belongs to
-return -1 if not belong to any sphere*/
+/*return the index of the sphere on which the point resides.
+return -1 if the point doesn't belong to any spheres. */
 int belongto(Point *p){
 	int whichsphere = -1;
 	float smallest = -1;
@@ -83,8 +83,8 @@ int belongto(Point *p){
 	return whichsphere;
 }
 
-//find intersection of a ray and a sphere. construct node for each sphere intersected in "list" array. 
-//In node, numintersection can be 0, 1, 2. only positive distance count.
+//find intersection of a ray and a sphere. record the information of the spheres that are hitted by the ray of light in an array named "list".
+//In each node of the array "list", numintersection can be 0, 1,and 2 because we only count the positive distance.
 //return the shortest positive distance--closest, -1.0 if no intersection 
 float look(RayType *r, int selfexclusive_0){
 	f->x = r->x;
@@ -98,7 +98,7 @@ float look(RayType *r, int selfexclusive_0){
 		list[i].p1 = 0;
 		list[i].p2 = 0;
 	}
-	/*construct "list" array*/
+	/*construct the array named "list"*/
 	int whichsphere = belongto(f);  //selfexclusive_0  is 0 in shadow function. don't consider current sphere
 	for (int i = 0; i < numsphere; ++i){
 		if (selfexclusive_0 == 0) { if (whichsphere == i) continue; }
@@ -108,7 +108,7 @@ float look(RayType *r, int selfexclusive_0){
 		if (discriminant < 0) {
 			list[i].n = 0;
 		}
-		else if (discriminant == 0)//does not mean has intersection with this ray which starts from a point.
+		else if (discriminant == 0)//does not mean the ray starting from a point hits a sphere.
 		{
 			float t = -B / 2;
 			if (0.02 < t) {
@@ -116,7 +116,7 @@ float look(RayType *r, int selfexclusive_0){
 				list[i].p1 = t;
 			}
 			else {
-				//cout << "has 1 intersection if trace backward" << endl;
+				//cout << "has 1 intersection if the ray is traced backward" << endl;
 			}
 		}
 		else {
@@ -172,7 +172,7 @@ float look(RayType *r, int selfexclusive_0){
 
 ColorType *h = new ColorType();
 
-ColorType Shade_Ray(Point intersec, int whichsphere)// two arguments tested correct later.
+ColorType Shade_Ray(Point intersec, int whichsphere)// two arguments verified to be correct later.
 {
 	Point interseccopy = intersec;
 	/*------------components needed for the 2nd, 3rd part, and the first step of reflected and transmitted ray tracing part---------*/
@@ -182,30 +182,30 @@ ColorType Shade_Ray(Point intersec, int whichsphere)// two arguments tested corr
 	/*reflected ray of I*/
 	*R = (*N) * 2 * ((*N)&(*I)) - *I;
 	*R = (*R) / (*R).GetMagnitude();
-	/*------this reflected ray pointer and it's direction(Vec3 *R) are used in every call of recursive reflective ray tracing-------*/
+	/*------reflected_ray is a pointer and its direction(Vec3 *R) is used in every call of the recursive reflective ray tracing-------*/
 	reflected_ray->dx = R->x;
 	reflected_ray->dy = R->y;
 	reflected_ray->dz = R->z;
 	reflected_ray->x = intersec.x;
 	reflected_ray->y = intersec.y;
 	reflected_ray->z = intersec.z;
-	/*----------At this intersection point, putting the NdotH of each light in an array sequantially--------------------------*/
+	/*----------At this intersection point, calculate the value NdotH for each light and store them in an array sequantially--------------------------*/
 	float NdotH[MAXLIGHT];
 	float NdotH_to_nth[MAXLIGHT];
 
 	for (int p = 0; p < MAXLIGHT; ++p){
-		NdotH_to_nth[p] = 1;//later we can multiply 1 by NdotH n times
+		NdotH_to_nth[p] = 1;//later, we can multiply 1 by NdotH n times
 	}
 
 	for (int i = 0; i < numlights; ++i){
-		if (lights[i].w == 1){//if point light, update corresponding element in L[i]
+		if (lights[i].w == 1){//if point light, update the corresponding element in L[i]
 			L[i] = (lights[i].lightlocation - intersec) / ((lights[i].lightlocation - intersec).GetMagnitude());
 		}
 		float NdotL = (*N)&(L[i]);//cos(theta)
-		/*if (NdotL < 0), then angle between N and L exceeds 90 degrees, the light is hitting the backside of the surface*/
+		/*if (NdotL < 0), then angle between N and L exceeds 90 degrees, which indicates the light is hitting the backside of the surface*/
 		NdotL = max((float)0, NdotL);
 
-		/*------------get N&H(i) for both point and directional light-------------------------------------------------------------*/
+		/*------------get N&H(i) for both the point lights and the directional lights-------------------------------------------------------------*/
 		*H = (L[i] + *V) / (L[i] + *V).GetMagnitude();
 		NdotH[i] = max((float)0, (*N)&(*H));
 
@@ -220,7 +220,7 @@ ColorType Shade_Ray(Point intersec, int whichsphere)// two arguments tested corr
 	return_color->b = materialcolor.ka*materialcolor.db;
 	/*--------------------adding the second and the third part of the Phong Model---------------------------------------------*/
 	for (int i = 0; i < numlights; ++i){
-		//shooting ray from the intersection to the light
+		//shooting rays from the intersection to the lights
 		makeray->x = intersec.x;
 		makeray->y = intersec.y;
 		makeray->z = intersec.z;
@@ -229,13 +229,13 @@ ColorType Shade_Ray(Point intersec, int whichsphere)// two arguments tested corr
 		makeray->dy = L[i].y;
 		makeray->dz = L[i].z;
 		float distance = -1;/*-1 if directional light*/
-		if (lights[i].w == 1){//update distance if point light
+		if (lights[i].w == 1){//update the distance if any of the lights are point lights
 			Vec3 distance_to_light = lights[i].lightlocation - intersec;
 			distance = distance_to_light.GetMagnitude();
 		}
 		float shadowflag = -1.0;
 
-		shadowflag = shadow(makeray, distance, whichsphere);//shoot ray to this light, find out whether shadow is formed.
+		shadowflag = shadow(makeray, distance, whichsphere);//shoot a thread of ray to this light source, and find out whether the shadow is formed.
 		//cout << shadowflag;
 		//if (shadowflag == 0) { cout << "shadowflag:   " << shadowflag << endl; }
 		if (shadowflag == -1.0){ cout << "Error: shadowflag doesn't get value/n"; }
@@ -431,7 +431,7 @@ void s::print(){
 }
 
 
-bool s::child(int whichsphere){//false if the point is on a transmited ray that tangent to the sphere. don't need transmit and reflected color.
+bool s::child(int whichsphere){//false if the point is on a transmitted ray that is tangent to the sphere. don't need the transmitted and the reflected colors.
 	in.x = parent.x;
 	in.y = parent.y;
 	in.z = parent.z;
@@ -453,7 +453,7 @@ bool s::child(int whichsphere){//false if the point is on a transmited ray that 
 	//if (t1 < 0 && t2 > 0) cout << 1 << endl;
 	if (t2 > t1) 	{ out = in + T*t2; } //cout <<t2<< endl;}
 	else  { out = in + T*t1; } //cout << t1 << endl;}
-	//N1 is the surface normal at outpoint
+	//N1 is the surface normal at the "outpoint"
 	N1 = (out - spheres[whichsphere].center) / (out - spheres[whichsphere].center).GetMagnitude();
 	beforeout = (N1*(-1))&(T*(-1));
 	/*--------------------------------internal reflected ch2 with direction d2---------------------------*/
@@ -481,13 +481,13 @@ bool s::child(int whichsphere){//false if the point is on a transmited ray that 
 
 	return true;
 }
-/*shade this point(verifed on sphere) using Phong model except adding recursive transmitted and reflected ray tracing part*/
+/*shade this point(verifed exists on a sphere) using the Phong model, but need to add the recursively transmitted and reflected ray tracing part later*/
 void pointcolor(Point *p){ //modifies *N,*V,*I,*H, *makeray
 	h->r = materialcolor.ka*materialcolor.dr;
 	h->g = materialcolor.ka*materialcolor.dg;
 	h->b = materialcolor.ka*materialcolor.db;
 	int whichsphere = belongto(p);
-	//	if (whichsphere == -1.0) { cout << "can't find whichsphere the ray start from." <<"            "<<"exit"<< endl; }
+	//if (whichsphere == -1.0) { cout << "can't find out which sphere the ray starts from." <<"            "<<"exit"<< endl; }
 	*N = (*p - spheres[whichsphere].center) / (spheres[whichsphere].r);
 	*V = (eye - *p) / ((eye - *p).GetMagnitude());
 	*I = *V;
@@ -504,29 +504,29 @@ void pointcolor(Point *p){ //modifies *N,*V,*I,*H, *makeray
 		NdotL = max((float)0, NdotL);
 
 		//get N&H(i)
-		*H = (L[i] + *V) / (L[i] + (*V)).GetMagnitude();//for either kind of light	
+		*H = (L[i] + *V) / (L[i] + (*V)).GetMagnitude();//for either kind of lights	
 		NdotH[i] = max((float)0, (*N)&(*H));
 
 		//get N&H_to_the_nth(2)
-		for (int j = 0; j < materialcolor.n; ++j){//add specular terms
+		for (int j = 0; j < materialcolor.n; ++j){//add the specular terms
 			NdotH_to_nth[i] *= NdotH[i];
 		}
 	}
 	for (int i = 0; i < numlights; ++i){
-		//shooting ray from the intersection to the light
+		//shoot rays from the intersection to the lights
 		makeray->x = p->x;
 		makeray->y = p->y;
 		makeray->z = p->z;
 		makeray->dx = L[i].x;
 		makeray->dy = L[i].y;
 		makeray->dz = L[i].z;
-		float distance = -1;/*-1 if directional light*/
+		float distance = -1;/*distance = -1 if directional light*/
 		if (lights[i].w == 1){//update distance if point light
 			Vec3 distance_to_light = lights[i].lightlocation - *p;
 			distance = distance_to_light.GetMagnitude();
 		}
 		float shadowflag = -1.0;
-		shadowflag = shadow(makeray, distance, whichsphere);//shoot ray to this light, find out whether shadow is formed.
+		shadowflag = shadow(makeray, distance, whichsphere);//shoot ray to this light, find out whether the shadow is formed.
 		if (shadowflag == -1.0){ cout << "Error: shadowflag doesn't get value/n"; exit(4); }
 		h->r += shadowflag*lights[i].r*(materialcolor.kd * materialcolor.dr*((*N)&L[i]) + materialcolor.ks*materialcolor.sr*NdotH_to_nth[i]);
 		h->g += shadowflag*lights[i].g*(materialcolor.kd * materialcolor.dg*((*N)&L[i]) + materialcolor.ks*materialcolor.sg*NdotH_to_nth[i]);
@@ -537,7 +537,7 @@ void pointcolor(Point *p){ //modifies *N,*V,*I,*H, *makeray
 
 
 
-ColorType reflective_trace_and_shade(RayType *ray){//ray is reflected ray
+ColorType reflective_trace_and_shade(RayType *ray){//the ray is a reflected ray
 	ColorType color;
 	from->x = ray->x;
 	from->y = ray->y;
@@ -577,11 +577,11 @@ ColorType reflective_trace_and_shade(RayType *ray){//ray is reflected ray
 		NdotL = max((float)0, NdotL);
 
 		//get N&H(i)
-		*H = (L[i] + *V) / (L[i] + (*V)).GetMagnitude();//for either kind of light	
+		*H = (L[i] + *V) / (L[i] + (*V)).GetMagnitude();//for either kind of lights
 		NdotH[i] = max((float)0, (*N)&(*H));
 
 		//get N&H_to_the_nth(2)
-		for (int j = 0; j < materialcolor.n; ++j){//add specular terms
+		for (int j = 0; j < materialcolor.n; ++j){//add the specular terms
 			NdotH_to_nth[i] *= NdotH[i];
 		}
 	}
@@ -590,7 +590,7 @@ ColorType reflective_trace_and_shade(RayType *ray){//ray is reflected ray
 	color.b = materialcolor.ka*materialcolor.db;
 
 	for (int i = 0; i < numlights; ++i){
-		//shooting ray from the intersection to the light
+		//shoot rays from the intersection to the lights
 		makeray->x = nextfrom->x;
 		makeray->y = nextfrom->y;
 		makeray->z = nextfrom->z;
@@ -598,13 +598,13 @@ ColorType reflective_trace_and_shade(RayType *ray){//ray is reflected ray
 		makeray->dy = L[i].y;
 		makeray->dz = L[i].z;
 		float distance = -1;/*-1 if directional light*/
-		if (lights[i].w == 1){//update distance if point light
+		if (lights[i].w == 1){//update the distance if point light
 			Vec3 distance_to_light = lights[i].lightlocation - *nextfrom;
 			distance = distance_to_light.GetMagnitude();
 		}
 		float shadowflag = -1.0;
 		int whichsphere = belongto(nextfrom);
-		if (whichsphere != -1.0){ shadowflag = shadow(makeray, distance, whichsphere); }//shoot ray to this light, find out whether shadow is formed.
+		if (whichsphere != -1.0){ shadowflag = shadow(makeray, distance, whichsphere); }//shoot rays to this lights, find out whether the shadow is formed.
 		else { cout << "can't find a sphere that has this point" << endl; exit(3); }
 		if (shadowflag == -1.0){ cout << "Error: shadowflag doesn't get value/n"; exit(4); }
 		color.r += shadowflag*lights[i].r*(materialcolor.kd * materialcolor.dr*((*N)&L[i]) + materialcolor.ks*materialcolor.sr*NdotH_to_nth[i]);
@@ -625,7 +625,8 @@ ColorType reflective_trace_and_shade(RayType *ray){//ray is reflected ray
 }
 
 
-/*shadowflag = shadow(makeray, L[i], distance, whichsphere);  shoot ray to this light, return shadow flag (0 is full shadow,1 is no shadow)*/
+/*shadowflag = shadow(makeray, L[i], distance, whichsphere); 
+shoot ray to this light, return the shadow flag (0 is full shadow,1 is no shadow)*/
 float shadow(RayType *ray, float distance, int whichsphere)
 {
 	int hitsphere = 0;//decide how dark the shadow is
@@ -641,7 +642,7 @@ float shadow(RayType *ray, float distance, int whichsphere)
 		//if point light
 		if (result > distance){ return 1.0; }//no shadow
 		else {
-			//has shadow. return 0.0; if hit 3 spheres, then full shadow if hit 1 sphere, 30% shadow.
+			//has shadow. return 0.0; if hit 3 spheres, then full shadow; if hit 1 sphere, 30% shadow.
 			return max((double)0, (1.00 - hitsphere*materialcolor.alpha));
 		}
 	}
@@ -657,7 +658,7 @@ ray/object intersection; keep track of the
 closest intersection point and of the identity
 of the object hit at that point;
 call Shade_Ray() to determine the color */
-ColorType Trace_Ray(RayType ray, Vec3 ray_dir, Point from) //from is eye at first
+ColorType Trace_Ray(RayType ray, Vec3 ray_dir, Point from) //"from" is "eye" at first
 {
 	/* search for closest ray/object intersection point */
 	/* call shade_ray to define the color at that point */
@@ -683,9 +684,9 @@ int main(void){
 	ifstream source;                    // build a read(input)-Stream
 
 	//source.open("input.txt", ios_base::in);  // open data
-	//"C:\\temp\\in.txt"
-	source.open("in.txt");
-	if (!source)  {                     // if it does not work
+	//"C:\\temp\\in.txt"  //this kind of absolute path and \\ is required in Visual Studio.
+	source.open("in.txt"); //This format is for the Linux terminal.
+	if (!source)  {                     // if open failed
 		cerr << "Can't open Data! Abort! \n";
 		return -1;
 	}
@@ -858,7 +859,7 @@ int main(void){
 
 	struct Point ul, ur, ll, lr;
 	if (viewdir.GetMagnitude() != 1){
-		viewdir = viewdir / viewdir.GetMagnitude();//nomalized viewdir 0 0 -1
+		viewdir = viewdir / viewdir.GetMagnitude();//get the nomalized viewdir (e.g 0 0 -1)
 	}
 	struct Vec3 u, v, w;
 	//printf("%f\t%f\t%f\n",w.x,w.y,w.z);//0 0 0
@@ -870,7 +871,7 @@ int main(void){
 	v = u%viewdir;
 	v = v / (v.GetMagnitude());//normalize v
 
-	float height, width;//One radian is equivalent to 180/PI degrees. height and width of view window in 3d space
+	float height, width;//One radian is equivalent to 180/PI degrees. height and width of view window is in the unit of the 3D space, not the pixel values.
 
 	if (fovh == 0 && fovv == 0)
 	{
@@ -894,35 +895,38 @@ int main(void){
 		height = width / aspect;
 		printf("height of window: %f\n width of window: %f\n", height, width);
 	}
-	/*  ul = view_origin + dn + h/2v -w/2u=view_origin+help1
+	/* This is the fomula taken from the lecture slides:   
+	ul = view_origin + dn + h/2v -w/2u=view_origin+help1
 	ur = view_origin + dn + h/2v + w/2u=view_origin+help2
 	ll = view_origin + dn -h/2v -w/2u =..
 	lr = view_origin + dn -h/2v + w/2u
 	*/
 	ul = eye + (viewdir*viewdist + v*(height / 2) - u*(width / 2)); //point=point+vec3
-	//printPoint(ul);// -5 5 0
 	ur = eye + (viewdir*viewdist + v*(height / 2) + u*(width / 2));
-	//printPoint(ur);// 5 5 0
 	ll = eye + (viewdir*viewdist - v*(height / 2) - u*(width / 2));
-	//printPoint(ll);// -5 -5 0
 	lr = eye + (viewdir*viewdist - v*(height / 2) + u*(width / 2));
 	//printPoint(lr);// 5 -5 0
-	Vec3 h_offset = (ur - ul) / (pixwidth - 1); //point-point=vec3. point/float=point  (10 0 0)/3=(3.333 0 0)
+	Vec3 h_offset = (ur - ul) / (pixwidth - 1); //point-point=vec3. point/float=point
 	Vec3 v_offset = (ll - ul) / (pixheight - 1);
 
-	// initialize pixel array for image 
-	Point coordinates[pixheight][pixwidth];//using h_offset and v_offset to calculate the coordinate of each pixel in viewing window
-	//It's a vector containting 10 vectors containing 10 point. Then you can use
+	// initialize the pixel array that is going to store the color of all the pixels row by row.
+	Point coordinates[pixheight][pixwidth];//use h_offset and v_offset to calculate the coordinate of each pixel in the viewing window
 	ColorType colormap[pixheight][pixwidth];
 	Vec3 ray_dir[pixheight][pixwidth];
 	RayType ray[pixheight][pixwidth];
 	
-	/*	 vector<vector<Point>> coordinates(pixheight, vector<Point>(pixwidth));//using h_offset and v_offset to calculate the coordinate of each pixel in viewing window
-	//It's a vector containting 10 vectors containing 10 point. Then you can use
+	/* Two ways of constructing an object that can be accessed like object[2][3].
+	The above version is used in the Linux terminal. 
+	The following version is used in Visual Studio. */
+	
+	/*
+	vector<vector<Point>> coordinates(pixheight, vector<Point>(pixwidth));//using h_offset and v_offset to calculate the coordinate of each pixel in viewing window
+	//It's a vector containting 10 vectors containing 10 points. Then you can use
 	vector<vector<ColorType>> colormap(pixheight, vector<ColorType>(pixwidth));
 	vector<vector<Vec3>> ray_dir(pixheight, vector<Vec3>(pixwidth));
 	vector<vector<RayType>> ray(pixheight, vector<RayType>(pixwidth));
 	*/
+	
 	//a[4][4] = p;
 	for (int i = 0; i < pixheight; ++i)
 	{
@@ -940,8 +944,8 @@ int main(void){
 			colormap[i][j] = Trace_Ray(ray[i][j], ray_dir[i][j], eye);
 		}
 	}
-	//ofstream out("output.ppm");
-	//("G:\\Gtemp\\out.ppm")
+
+	//("G:\\Gtemp\\out.ppm")  //this version is used in Visual Studio
 	ofstream out("out.ppm");
 	// to create a file for input: ifstream in("input.txt")    Use "ofstream out"like cout   to write to the file rather than the terminal
 	out << "P3\n" << pixwidth << " " << pixheight << "\n" << 255 << "\n";
@@ -952,7 +956,7 @@ int main(void){
 			out << colormap[i][j].r * 255 << " " << colormap[i][j].g * 255 << " " << colormap[i][j].b * 255 << "\n";
 		}
 	}
-	cout << "ppm file generated correctly.";
+	cout << "ppm file generated correctly. You can open it with Gimp or Photoshop";
 	out.close();
 	return 0;
 }
